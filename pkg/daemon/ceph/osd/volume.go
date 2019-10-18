@@ -98,7 +98,17 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 		}
 		if device.Data == -1 {
 			logger.Infof("configuring new device %s", name)
-			deviceArg := device.Config.Name
+			devInfo, err := context.Executor.ExecuteCommandWithOutput(true, "",
+				"dmsetup", "info", "-c", "--noheadings", "-o", "name", device.Config.Name)
+			if err != nil {
+				return "", fmt.Errorf("failed dmsetup info. output: %s, err: %v", devInfo, err)
+			}
+			out, err := context.Executor.ExecuteCommandWithOutput(true, "", "dmsetup", "splitname", devInfo, "--noheadings")
+			if err != nil {
+				return "", fmt.Errorf("failed dmsetup splitname %s. err: %v", devInfo, err)
+			}
+			split := strings.Split(out, ":")
+			deviceArg := fmt.Sprintf("%s/%s", split[0], split[1])
 			immediateExecuteArgs := append(baseArgs, []string{
 				"--data",
 				deviceArg,
